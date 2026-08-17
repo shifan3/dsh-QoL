@@ -1,0 +1,30 @@
+{
+  "name": "dsh-qol",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "DSH Web QoL 插件：Enter 换行 / Ctrl+Enter 发送；编辑历史消息并重新回答或分支。",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": ["@deepseek-ai/dsh-client-runtime"],
+      "immediately": true
+    }
+  },
+  "files": [
+    "lib/index.js",
+    "lib/client.js",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "license": "MIT"
+}
