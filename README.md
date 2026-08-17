@@ -1,6 +1,6 @@
 # dsh-QoL
 
-DSH Web 生活质量插件，合并了原先两个独立插件的能力：
+DSH Web 生活质量插件：
 
 ## 功能 1：Enter 换行，Ctrl/Cmd+Enter 发送
 
@@ -27,6 +27,15 @@ DSH Web 生活质量插件，合并了原先两个独立插件的能力：
 
 > 由于 DSH 会话是 append-only，编辑通过 fork 新会话实现，原会话保留在会话列表中。
 
+## 功能 3：Web 文件编辑器（VS Code Remote 式）
+
+- 页面右下角出现「文件编辑器」浮动按钮，点击打开全屏编辑器。
+- 顶部路径栏可输入任意文件或目录路径，回车或点「打开」。
+- 左侧为当前目录文件列表：点击目录进入，点击文件打开；支持「上一级」。
+- 编辑区为暗色代码编辑器，支持 JS/TS/JSON/Python/HTML/CSS/Bash/Markdown/YAML 等常见语言的语法高亮。
+- 「保存」把当前内容写回文件。
+- 后端通过 DSH `fs` 服务读写文件，与 Agent 使用同一套文件系统与沙箱语义。
+
 ## 限制
 
 - 编辑仅支持纯文本消息（含图片的消息不显示编辑按钮）。
@@ -42,6 +51,14 @@ dsh plugin --profile web add github:shifan3/dsh-QoL
 然后重启 `dsh web`（或 `dsh --profile web`）并刷新页面。
 
 `dsh plugin` 会把本包加入 web profile 的 `dsh.profile.bundles`，启动时自动应用本仓库的 `cordis.patch.yml` 激活插件。
+
+更新到新版本：
+
+```bash
+dsh plugin --profile web update dsh-qol
+```
+
+然后重启 `dsh web`。
 
 ## 卸载
 
@@ -78,9 +95,10 @@ dsh plugin --profile web remove dsh-qol
 
 ```
 dsh-QoL/
-├── package.json      # dsh.client 声明（web 平台，立即加载）
+├── package.json      # dsh.bundle.patch + dsh.client 声明
+├── cordis.patch.yml  # bundle 激活补丁
 ├── lib/
-│   ├── index.js      # 宿主侧：/dsh-qol/rewrite 路由 + fork 重写逻辑
-│   └── client.js     # 浏览器端：Enter 拦截 + 编辑按钮 + 行内编辑器
+│   ├── index.js      # 宿主侧：rewrite/fork 路由 + fs read/list/write 路由
+│   └── client.js     # 浏览器端：Enter 拦截 + 历史编辑 + 文件编辑器
 └── README.md
 ```

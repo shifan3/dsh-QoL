@@ -1,9 +1,9 @@
 {
   "name": "dsh-qol",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
-  "description": "DSH Web QoL 插件：Enter 换行 / Ctrl+Enter 发送；编辑历史消息并重新回答或分支。",
+  "description": "DSH Web QoL 插件：Enter 换行 / Ctrl+Enter 发送；编辑历史消息并重新回答或分支；内置带语法高亮的文件编辑器。",
   "main": "lib/index.js",
   "exports": {
     ".": "./lib/index.js",
