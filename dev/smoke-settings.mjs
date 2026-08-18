@@ -270,6 +270,36 @@ function check(label, cond, extra) {
   check("[8] kimi input stayed absent", section.providers["kimi-coding"].models[0].input === undefined);
 }
 
+// [10] thinking declarations (route compat/reasoning, model reasoningEfforts)
+// survive page-style writes that omit them — same seam as `input`.
+{
+  const danatech = (thinking) => {
+    const profile = {
+      apiKeyEnv: "DANATECH_101_API_KEY", api: "openai-completions", baseURL: "http://10.33.10.101:7878/v1",
+      models: [
+        { id: "qwen3.8-27b-nvfp4", contextWindow: 500000, maxTokens: 256000, ...(thinking === void 0 ? {} : { reasoningEfforts: thinking }), ...(thinking ? { input: ["text", "image"] } : {}) },
+        { id: "text-only-model", contextWindow: 131072, maxTokens: 32768 }
+      ]
+    };
+    if (thinking === void 0) return profile;
+    return { ...profile, compat: { thinkingFormat: "qwen-chat-template" }, reasoning: "high" };
+  };
+  // [10a] declare thinking (explicit values always travel untouched)
+  const a = await h("settings.mutate", { ns: "llm-pi-ai", ops: [{ op: "set", path: ["providers", "danatech-101"], value: danatech({ off: null, high: "high" }) }], expectedRevision: revision });
+  check("[10a] thinking declaration lands", a.ok === true);
+  check("[10a] route compat kept", JSON.stringify(section.providers["danatech-101"].compat) === '{"thinkingFormat":"qwen-chat-template"}');
+  // [10b] page-style whole-route save OMITTING compat/reasoning/reasoningEfforts
+  const b = await h("settings.mutate", { ns: "llm-pi-ai", ops: [{ op: "set", path: ["providers", "danatech-101"], value: danatech(void 0) }], expectedRevision: revision });
+  check("[10b] dropping save ok", b.ok === true);
+  check("[10b] route compat re-adopted", JSON.stringify(section.providers["danatech-101"].compat) === '{"thinkingFormat":"qwen-chat-template"}');
+  check("[10b] route reasoning re-adopted", section.providers["danatech-101"].reasoning === "high");
+  check("[10b] model reasoningEfforts re-adopted", JSON.stringify(section.providers["danatech-101"].models[0].reasoningEfforts) === '{"off":null,"high":"high"}');
+  // [10c] explicit false is a deliberate non-reasoning declaration: not re-adopted
+  const c = await h("settings.mutate", { ns: "llm-pi-ai", ops: [{ op: "set", path: ["providers", "danatech-101"], value: danatech(false) }], expectedRevision: revision });
+  check("[10c] explicit false survives (no re-adopt over intent)", c.ok === true && section.providers["danatech-101"].models[0].reasoningEfforts === false,
+    JSON.stringify(section.providers["danatech-101"].models[0].reasoningEfforts));
+}
+
 // [9] cleanup: unmount intercept + routes.
 for (const fn of effects) fn();
 check("[9] after cleanup intercept unregistered", interceptArgs === null);
