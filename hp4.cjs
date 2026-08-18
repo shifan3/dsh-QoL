@@ -860,6 +860,28 @@ async function main() {
     h10.cleanup();
   }
 
+  {
+    // G11: the file editor renders visible glyphs in .dsh-qol-editor-highlight > code
+    // while clicks/typing land in the transparent .dsh-qol-editor-input textarea.
+    // The UA rule <code>{font-family:monospace} gave the visible layer a DIFFERENT
+    // monospace font than the declared stack → advance widths diverged → typed chars
+    // drift left of the clicked position, growing proportionally with x. The
+    // `font:inherit` pin on the code element closes that class of metric mismatch.
+    const doc11 = makeDocument();
+    const home11 = doc11.createElement("div");
+    doc11.body.appendChild(home11);
+    const st11 = BASE_ST();
+    const stores11 = makeStores(st11);
+    Object.assign(st11, { sessions: stores11.sessions, workspaces: stores11.workspaces, doc: doc11 });
+    const h11 = loadPlugin(st11);
+    const style11 = doc11.querySelectorAll("style").find((s) => s.dataset && s.dataset.plugin === "dsh-qol") || null;
+    const css11 = (style11 && style11.textContent) || "";
+    ok("G11 style injected into head", !!style11);
+    ok("G11 overlay <code> pinned to declared font (UA monospace desyncs caret vs glyphs)",
+       css11.indexOf(".dsh-qol-editor-highlight code{font:inherit;font-family:inherit;}") !== -1);
+    h11.cleanup();
+  }
+
   if (fails.length) {
     console.log("\nFAILURES(" + fails.length + "):\n" + fails.map((f) => "  - " + f).join("\n"));
     process.exit(1);
