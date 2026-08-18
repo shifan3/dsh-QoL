@@ -343,7 +343,7 @@ function loadPlugin(st) {
     setInterval,
     clearInterval,
     navigator: { userAgent: "hp4-test" },
-    fetch: async () => ({ ok: false, json: async () => ({}) }),
+    fetch: st.fetch || (async () => ({ ok: false, json: async () => ({}) })),
   };
   vm.createContext(sandbox);
   vm.runInContext(CODE, sandbox, { filename: "client.js" });
@@ -353,7 +353,12 @@ function loadPlugin(st) {
   mod.apply({
     sessions: st.sessions,
     workspaces: st.workspaces,
-    effect: (fn) => effects.push(fn),
+    effect: (fn) => {
+      // the client registers effect(() => cleanupFn); capture the disposable
+      const disposable = fn();
+      if (typeof disposable === "function") effects.push(disposable);
+      else if (typeof fn === "function" && fn !== void 0) effects.push(fn);
+    },
   });
   const editorInput = doc.querySelector(".dsh-qol-editor-input");
   const editorPath = doc.querySelector(".dsh-qol-editor-path");
@@ -880,6 +885,93 @@ async function main() {
     ok("G11 overlay <code> pinned to declared font (UA monospace desyncs caret vs glyphs)",
        css11.indexOf(".dsh-qol-editor-highlight code{font:inherit;font-family:inherit;}") !== -1);
     h11.cleanup();
+  }
+
+  {
+    // G12: settings-page model rows get a dsh-qol image-input checkbox injected.
+    // The value is read from the (stubbed) /dsh-qol/model-input GET, pre-checked
+    // when the stored `input` declares image, and a change POSTs the toggle.
+    const doc12 = makeDocument();
+    const st12 = BASE_ST();
+    const stores12 = makeStores(st12);
+    const home12 = doc12.createElement("div");
+    doc12.body.appendChild(home12);
+    // one image-capable model and one text-only model in the settings UI shape
+    const mkEntry = (id) => {
+      const entry = doc12.createElement("div");
+      entry.className = "zGbnIq_modelEntry";
+      const row = doc12.createElement("div");
+      row.className = "zGbnIq_modelRow";
+      const idInput = doc12.createElement("input");
+      idInput.value = id;
+      row.appendChild(idInput);
+      entry.appendChild(row);
+      home12.appendChild(entry);
+      return entry;
+    };
+    const entryImg = mkEntry("qwen3.8-27b-nvfp4");
+    const entryTxt = mkEntry("text-only-model");
+    let get12 = 0;
+    const posts12 = [];
+    st12.fetch = async (url, init) => {
+      const u = String(url);
+      if (u === "/dsh-qol/model-input") {
+        if (init && init.method === "POST") {
+          posts12.push(JSON.parse(init.body));
+          return { status: 200, ok: true, json: async () => ({ ok: true, route: "danatech-101", index: 0, input: ["text", "image"] }) };
+        }
+        get12 += 1;
+        return {
+          status: 200,
+          ok: true,
+          json: async () => ({
+            ok: true,
+            ns: "llm-pi-ai",
+            revision: 7,
+            providers: {
+              "danatech-101": {
+                models: [
+                  { id: "qwen3.8-27b-nvfp4", input: ["text", "image"] },
+                  { id: "text-only-model", input: undefined }
+                ]
+              }
+            }
+          })
+        };
+      }
+      return { status: 404, ok: false, json: async () => ({ ok: false, error: "not found" }) };
+    };
+    st12.doc = doc12;
+    st12.sessions = stores12.sessions;
+    st12.workspaces = stores12.workspaces;
+    const h12 = loadPlugin(st12);
+    await sleep(10);
+    const fieldImg = entryImg.querySelector(".dsh-qol-modelInput");
+    const fieldTxt = entryTxt.querySelector(".dsh-qol-modelInput");
+    ok("G12 image-input field injected per model row", !!fieldImg && !!fieldTxt);
+    const boxImg = fieldImg ? fieldImg.querySelector(".dsh-qol-modelInputBox") : null;
+    const boxTxt = fieldTxt ? fieldTxt.querySelector(".dsh-qol-modelInputBox") : null;
+    const stImg = fieldImg ? fieldImg.querySelector(".dsh-qol-modelInputStatus") : null;
+    const stTxt = fieldTxt ? fieldTxt.querySelector(".dsh-qol-modelInputStatus") : null;
+    ok("G12 field anchored right after the model row", !!fieldImg && fieldImg.previousSibling === entryImg.querySelector(".zGbnIq_modelRow"));
+    ok("G12 image-capable model pre-checked", !!boxImg && boxImg.checked === true, "checked=" + (boxImg && boxImg.checked));
+    ok("G12 image status reads as declared (saved)", !!stImg && /text \+ image/.test(stImg.textContent) && stImg.className.indexOf("saved") !== -1, "t=" + (stImg && stImg.textContent));
+    ok("G12 text-only model unchecked", !!boxTxt && boxTxt.checked === false, "checked=" + (boxTxt && boxTxt.checked));
+    ok("G12 text-only status reads as undeclared", !!stTxt && /未声明/.test(stTxt.textContent), "t=" + (stTxt && stTxt.textContent));
+    ok("G12 view fetched exactly once for the row batch", get12 === 1, "gets=" + get12);
+    // toggle the text-only model → POST the image declaration
+    if (boxTxt) {
+      boxTxt.checked = true;
+      boxTxt.dispatchEvent(makeEvent("change", boxTxt, {}));
+    }
+    await sleep(10);
+    ok("G12 change posts the toggle", posts12.length === 1 && posts12[0].modelId === "text-only-model" && posts12[0].image === true,
+       "n=" + posts12.length + " body=" + JSON.stringify(posts12[0]));
+    const stTxt2 = fieldTxt ? fieldTxt.querySelector(".dsh-qol-modelInputStatus") : null;
+    ok("G12 saved status after toggle", !!stTxt2 && /已保存/.test(stTxt2.textContent) && stTxt2.className.indexOf("saved") !== -1, "t=" + (stTxt2 && stTxt2.textContent));
+    h12.cleanup();
+    const fieldImg2 = entryImg.querySelector(".dsh-qol-modelInput");
+    ok("G12 cleanup removes injected fields", fieldImg2 === null);
   }
 
   if (fails.length) {
