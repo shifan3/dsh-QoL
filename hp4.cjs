@@ -333,6 +333,7 @@ function loadPlugin(st) {
     console,
     Event: FakeEvent,
     MutationObserver,
+    getComputedStyle: st.getComputedStyle || ((el) => ({ paddingLeft: "16px", paddingRight: "16px" })),
     Element,
     HTMLElement,
     HTMLTextAreaElement,
@@ -798,6 +799,57 @@ async function main() {
     ok("G9 no stale textarea after cancel", ta9b === null);
     h9.cleanup();
     doc9.body.children.length;
+  }
+
+  {
+    // G10: editor box must match the ORIGINAL bubble's width (not the full
+    // column) so the text line does not sit left of the message; textarea
+    // padding mirrors the bubble's for character alignment.
+    const doc10 = makeDocument();
+    const st10 = BASE_ST();
+    const stores10 = makeStores(st10);
+    const home10 = doc10.createElement("div");
+    doc10.body.appendChild(home10);
+    const uuid10 = "6a1f2c00-0000-4000-8000-000000000002";
+    const wrapper = doc10.createElement("div");
+    wrapper.setAttribute("data-chat-flow-kind", "user");
+    wrapper.setAttribute("data-chat-anchor-key", "13:input-message" + uuid10);
+    wrapper.className = "X_flowItem";
+    const userRow = doc10.createElement("div");
+    userRow.className = "X_userRow";
+    const userStack = doc10.createElement("div");
+    userStack.className = "X_userStack";
+    const bubble = doc10.createElement("div");
+    bubble.className = "X_bubble";
+    bubble.innerText = "short mid-line message";
+    bubble.getBoundingClientRect = () => ({ width: 210, left: 500, top: 100, right: 710, bottom: 140 });
+    userStack.appendChild(bubble);
+    const actionsRow = doc10.createElement("div");
+    actionsRow.className = "X_actions";
+    const copyBtn = doc10.createElement("button");
+    copyBtn.className = "X_action";
+    copyBtn.setAttribute("aria-label", "Copy");
+    actionsRow.appendChild(copyBtn);
+    userRow.appendChild(userStack);
+    userRow.appendChild(actionsRow);
+    wrapper.appendChild(userRow);
+    home10.appendChild(wrapper);
+    const h10 = loadPlugin({ sessions: stores10.sessions, workspaces: stores10.workspaces, editorFile: "/proj/app.js", doc: doc10 });
+    const pencil = wrapper.querySelector(".dsh-qol-edit");
+    if (pencil) pencil.click();
+    await sleep(5);
+    const editor = wrapper.querySelector(".dsh-qol-editor");
+    const ta10 = editor ? editor.querySelector(".dsh-qol-textarea") : null;
+    ok("G10 editor opened", !!editor);
+    ok("G10 editor width equals original bubble width", !!editor && editor.style.width === "210px", "w=" + (editor && editor.style.width));
+    ok("G10 textarea padding mirrors bubble padding", !!ta10 && ta10.style.paddingLeft === "16px" && ta10.style.paddingRight === "16px",
+       "pl=" + (ta10 && ta10.style.paddingLeft));
+    ok("G10 still in the bubble's seat (same line)", !!ta10 && editor.parentNode === userStack);
+    const cancel10 = editor ? editor.querySelector(".dsh-qol-cancel") : null;
+    if (cancel10) cancel10.click();
+    await sleep(5);
+    ok("G10 cancel restores state", wrapper.querySelector(".dsh-qol-editor") === null && bubble.style.display === "");
+    h10.cleanup();
   }
 
   if (fails.length) {
