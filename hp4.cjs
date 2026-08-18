@@ -126,6 +126,13 @@ class FakeNode {
     if (i < 0) return null;
     return p.children[i + 1] || null;
   }
+  get previousSibling() {
+    const p = this.parentNode;
+    if (!p) return null;
+    const i = p.children.indexOf(this);
+    if (i <= 0) return null;
+    return p.children[i - 1] || null;
+  }
   get firstChild() { return this.children[0] || null; }
   get lastChild() { return this.children[this.children.length - 1] || null; }
   get childNodes() { return this.children; }
@@ -197,6 +204,16 @@ class FakeNode {
     return ev;
   }
   click() { const ev = new FakeEvent("click", { bubbles: true }); this.dispatchEvent(ev); return ev; }
+  insertAdjacentElement(position, node) {
+    if (this.parentNode === null) throw new Error("insertAdjacentElement: no parent");
+    if (position === "afterend") this.parentNode.insertBefore(node, this.nextSibling);
+    else if (position === "beforebegin") this.parentNode.insertBefore(node, this);
+    else if (position === "beforeend") throw new Error("misposition");
+    else throw new Error("unsupported position " + position);
+    return node;
+  }
+  focus() { this.isFocused = true; }
+  blur() { this.isFocused = false; }
   closest(sel) { let n = this; while (n && n.nodeType === 1) { if (matchesAny(n, sel)) return n; n = n.parentNode; } return null; }
   matches(sel) { return matchesAny(this, sel); }
   querySelectorAll(sel) {
@@ -298,7 +315,7 @@ function makeDocument() {
 let CODE = null;
 function loadPlugin(st) {
   if (!CODE) CODE = fs.readFileSync(path.join(__dirname, "lib/client.js"), "utf8");
-  const doc = makeDocument();
+  const doc = st.doc || makeDocument();
   const win = {
     setInterval: (fn, ms) => setInterval(fn, ms),
     clearInterval: (id) => clearInterval(id),
@@ -722,6 +739,65 @@ async function main() {
     const shell = h.doc.querySelector(".dsh-qol-selpop");
     ok("G8 re-placed pill is inside the shell card", !!pill && shell && shell.contains(pill));
     h.cleanup();
+  }
+
+  {
+    // G9: edit (pencil) flow with the CURRENT DSH row shape:
+    // wrapper > userRow > userStack > [bubble], plus an actions row.
+    // The inline editor must open IN the bubble's seat (same line), not
+    // appended after the whole row (old bug: wrapper.insertBefore(editor, null)).
+    const doc9 = makeDocument();
+    const st9 = BASE_ST();
+    const stores9 = makeStores(st9);
+    const home9 = doc9.createElement("div");
+    doc9.body.appendChild(home9);
+    // message row (built BEFORE loadPlugin so the startup scan decorates it)
+    const uuid9 = "6a1f2c00-0000-4000-8000-000000000001";
+    const wrapper = doc9.createElement("div");
+    wrapper.setAttribute("data-chat-flow-kind", "user");
+    wrapper.setAttribute("data-chat-anchor-key", "13:input-message" + uuid9);
+    wrapper.className = "X_flowItem";
+    const userRow = doc9.createElement("div");
+    userRow.className = "X_userRow";
+    const userStack = doc9.createElement("div");
+    userStack.className = "X_userStack";
+    const bubble = doc9.createElement("div");
+    bubble.className = "X_bubble";
+    bubble.innerText = "hello old line";
+    userStack.appendChild(bubble);
+    const actionsRow = doc9.createElement("div");
+    actionsRow.className = "X_actions";
+    const copyBtn = doc9.createElement("button");
+    copyBtn.className = "X_action";
+    copyBtn.setAttribute("aria-label", "Copy");
+    actionsRow.appendChild(copyBtn);
+    userRow.appendChild(userStack);
+    userRow.appendChild(actionsRow);
+    wrapper.appendChild(userRow);
+    home9.appendChild(wrapper);
+    const h9 = loadPlugin({ sessions: stores9.sessions, workspaces: stores9.workspaces, editorFile: "/proj/app.js", doc: doc9 });
+    const pencil = wrapper.querySelector(".dsh-qol-edit");
+    ok("G9 pencil injected by startup scan", !!pencil);
+    if (pencil) pencil.click();
+    await sleep(5);
+    const editor = wrapper.querySelector(".dsh-qol-editor");
+    ok("G9 editor opened", !!editor);
+    ok("G9 bubble hidden while editing", bubble.style.display === "none");
+    ok("G9 editor sits in the bubble's parent (same line), NOT the wrapper",
+       !!editor && editor.parentNode === userStack && editor.parentNode !== wrapper,
+       "parent=" + (editor && editor.parentNode && (editor.parentNode.className || editor.parentNode.tagName)));
+    ok("G9 editor inserted at the bubble's seat (right after bubble)", !!editor && editor.previousSibling === bubble);
+    const ta9 = editor ? editor.querySelector(".dsh-qol-textarea") : null;
+    ok("G9 textarea pre-filled with original text", !!ta9 && ta9.value === "hello old line", "value=" + JSON.stringify(ta9 && ta9.value));
+    ok("G9 textarea focused", !!ta9 && ta9.isFocused === true);
+    const cancel9 = editor ? editor.querySelector(".dsh-qol-cancel") : null;
+    if (cancel9) cancel9.click();
+    await sleep(5);
+    ok("G9 cancel removes editor and restores bubble", wrapper.querySelector(".dsh-qol-editor") === null && bubble.style.display === "");
+    const ta9b = wrapper.querySelector(".dsh-qol-textarea");
+    ok("G9 no stale textarea after cancel", ta9b === null);
+    h9.cleanup();
+    doc9.body.children.length;
   }
 
   if (fails.length) {
