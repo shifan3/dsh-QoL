@@ -810,6 +810,12 @@ async function main() {
     const stores10 = makeStores(st10);
     const home10 = doc10.createElement("div");
     doc10.body.appendChild(home10);
+    st10.getComputedStyle = (el) => {
+      if (!el || !el.tagName) return {};
+      if (el.className === "dsh-qol-editor") return { borderLeftWidth: "1px", borderRightWidth: "1px", paddingLeft: "10px", paddingRight: "10px" };
+      if (el.tagName === "TEXTAREA") return { borderLeftWidth: "1px", borderRightWidth: "1px" };
+      return { paddingLeft: "16px", paddingRight: "16px" };
+    };
     const uuid10 = "6a1f2c00-0000-4000-8000-000000000002";
     const wrapper = doc10.createElement("div");
     wrapper.setAttribute("data-chat-flow-kind", "user");
@@ -834,7 +840,8 @@ async function main() {
     userRow.appendChild(actionsRow);
     wrapper.appendChild(userRow);
     home10.appendChild(wrapper);
-    const h10 = loadPlugin({ sessions: stores10.sessions, workspaces: stores10.workspaces, editorFile: "/proj/app.js", doc: doc10 });
+    Object.assign(st10, { sessions: stores10.sessions, workspaces: stores10.workspaces, editorFile: "/proj/app.js", doc: doc10 });
+    const h10 = loadPlugin(st10);
     const pencil = wrapper.querySelector(".dsh-qol-edit");
     if (pencil) pencil.click();
     await sleep(5);
@@ -842,7 +849,8 @@ async function main() {
     const ta10 = editor ? editor.querySelector(".dsh-qol-textarea") : null;
     ok("G10 editor opened", !!editor);
     ok("G10 editor width equals original bubble width", !!editor && editor.style.width === "210px", "w=" + (editor && editor.style.width));
-    ok("G10 textarea padding mirrors bubble padding", !!ta10 && ta10.style.paddingLeft === "16px" && ta10.style.paddingRight === "16px",
+    // text origin must line up with the bubble text: 16 - (1 border + 10 editor pad + 1 ta border) = 4px
+    ok("G10 textarea padding compensates fixed offsets (16-12=4px)", !!ta10 && ta10.style.paddingLeft === "4px" && ta10.style.paddingRight === "4px",
        "pl=" + (ta10 && ta10.style.paddingLeft));
     ok("G10 still in the bubble's seat (same line)", !!ta10 && editor.parentNode === userStack);
     const cancel10 = editor ? editor.querySelector(".dsh-qol-cancel") : null;
