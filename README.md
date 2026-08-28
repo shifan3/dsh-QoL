@@ -59,6 +59,32 @@ DSH Web 生活质量插件：
   均查不到时才退化为仅按 cwd 建会话）。
   Esc、点窗外或关闭编辑器可取消；发送后小窗自动收起、输入框归位。
 
+## 功能 7：read_image 工具行「查看」按钮（页内图片预览）
+
+- 大模型调用 `read_image` 工具时，聊天流里的 `Tool call · read_image · <路径>`
+  行尾出现「查看」按钮（原生 ToolRow 把 read_image 归为通用 others 变体，
+  没有可点击的文件链接，本按钮由插件注入）：
+  - **路径来源**：收起态摘要 `read_image · <路径>`（显示文本已剥离会话 cwd
+    前缀，点击时按当前会话 cwd 重新解析，与工具行原生 fileLink 的语义一致）；
+    失败行的摘要即错误首行，从中提取 `cannot read "<路径>"` 里的原始路径；
+  - **流式安全**：参数还在流式输出（摘要是截断 JSON 或裸 callId）时不注入，
+    由 1 秒 repair 循环在参数定型后补齐，路径变化时刷新 `dataset.path`，
+    点击永远取最新值；
+- 点击「查看」打开模态框预览图片（z-index 高于文件编辑器）：
+  - 浏览器经插件宿主路由 `GET /dsh-qol/image?path=<urlencoded>`（带
+    `X-DSH-QoL` 头）取字节；宿主用与文件编辑器同一 `ctx.fs` 服务
+    （`resolve` → `stat` → `readBytes`，同一套文件系统与沙箱语义）读取
+    **原始字节**直接下发（png/jpg/jpeg/webp/gif 白名单，与 read_image 工具
+    接受的扩展名一致；上限 10MB，超限回 413）；
+  - 模态框经 `blob:` objectURL 渲染 `<img>`（`<img src>` 直连路由带不了
+    自定义头）；加载中 / 失败（404、沙箱拒绝、超限等）状态与宿主错误文案
+    原样显示；
+  - Esc / 点背景 / 「×」关闭；关闭即释放 objectURL。
+- 「查看」按钮点击在 document 捕获阶段拦截（`stopPropagation` 避免触发
+  工具行原生的展开切换）；Enter/Space 键盘激活同样放行、不触发展开。
+- 限制：图片必须在宿主 `ctx.fs` 可读的范围内（与文件编辑器同一语义）；
+  超大图片（>10MB）不可预览，错误文案会说明原因。
+
 ## 限制
 
 - 编辑仅支持纯文本消息（含图片的消息不显示编辑按钮）。
@@ -121,7 +147,10 @@ dsh-QoL/
 ├── package.json      # dsh.bundle.patch + dsh.client 声明
 ├── cordis.patch.yml  # bundle 激活补丁
 ├── lib/
-│   ├── index.js      # 宿主侧：rewrite/fork 路由 + fs read/list/write 路由
-│   └── client.js     # 浏览器端：Enter 拦截 + 历史编辑 + 文件编辑器
+│   ├── index.js      # 宿主侧：rewrite/fork 路由 + fs read/list/write 路由 + 图片预览路由
+│   └── client.js     # 浏览器端：Enter 拦截 + 历史编辑 + 文件编辑器 + read_image 查看按钮/图片预览模态框
+├── dev/
+│   ├── image-view-test.cjs   # 功能 7 客户端按钮注入/路径解析/模态框的 fake-DOM 冒烟测试
+│   └── image-route-test.mjs  # 功能 7 宿主 /dsh-qol/image 路由的假 ctx 冒烟测试
 └── README.md
 ```
