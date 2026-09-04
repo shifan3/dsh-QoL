@@ -4,6 +4,13 @@ DSH Web 生活质量插件：
 
 ## 版本记录
 
+- **1.9.2** — 修复「繁忙时插话/排队」被吞：新版 DSH Web 的 composer 在智能体运行中
+  **仍然可编辑**（旧 UI 是 readOnly，QoL 靠 disabled/readOnly 守卫天然让位原生逻辑），
+  因此 1.9.1 的 Enter 换行拦截在运行态把 DSH 原生的「繁忙时 Enter 键行为」
+  （设置面板可选「排队发送 / 插话发送」，Ctrl/Cmd+Enter 用另一行为）整个拦成了换行，
+  排队/插话手势全部失效。本版本跟踪当前会话的 `running` 位（`sessions.list` 快照
+  订阅 + 1s 轮询），运行中把 plain Enter 交还给原生逻辑（与旧 UI 的「忙碌让位」契约一致），
+  Ctrl/Cmd+Enter 的填塞/重路由行为不变。
 - **1.9.1** — 兼容新版 DSH Web（0.1.2+）的输入框：composer 从 `<textarea>` 换成了
   Lexical 驱动的 contenteditable div（`role=textbox` / `data-composer-input`）。旧代码的
   `instanceof HTMLTextAreaElement` 守卫在新 UI 上恒为 false，导致 Enter 拦截、Ctrl/Cmd+Enter

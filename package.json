@@ -1,6 +1,6 @@
 {
   "name": "dsh-qol",
-"version": "1.9.1",
+"version": "1.9.2",
   "private": true,
   "type": "module",
   "description": "DSH Web QoL 插件：Enter 换行 / Ctrl+Enter 发送；编辑历史消息并重新回答或分支；带语法高亮的文件编辑器；选中代码即可带着文件/行号发起对话；read_image 工具行注入「查看」按钮，点击后经宿主路由（ctx.fs.readBytes）取原始字节，在页内模态框直接预览图片。",
