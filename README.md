@@ -2,6 +2,21 @@
 
 DSH Web 生活质量插件：
 
+## 版本记录
+
+- **1.9.1** — 兼容新版 DSH Web（0.1.2+）的输入框：composer 从 `<textarea>` 换成了
+  Lexical 驱动的 contenteditable div（`role=textbox` / `data-composer-input`）。旧代码的
+  `instanceof HTMLTextAreaElement` 守卫在新 UI 上恒为 false，导致 Enter 拦截、Ctrl/Cmd+Enter
+  发送前缀填塞、「新会话提问/回复当前会话」重路由全部失效（表现为回车照旧直接发送）。
+  本版本同时识别两种输入元素：Enter 换行/发送、pending 前缀填塞（contenteditable 走
+  focus + 全选 + `execCommand("insertText")`，原生 input 事件照常驱动 Lexical 同步）、
+  忙碌/锁定的判定（textarea 看 disabled/readOnly，contenteditable 看 `isContentEditable`）。
+  同时把 `dsh.client.inject` 从不复存在的 `@deepseek-ai/dsh-client-runtime` 改为当前
+  实际提供 `sessions`/`workspaces` 服务的两个模块（`dsh-api-session-controller`、
+  `dsh-api-workspace-controller`），保证加载顺序。
+- **1.9.0** — 功能 7：read_image 工具行「查看」按钮，页内模态框经宿主路由
+  （`ctx.fs.readBytes`）预览图片原始字节。
+
 ## 功能 1：Enter 换行，Ctrl/Cmd+Enter 发送
 
 - **Enter**：换行（不再直接发送）
